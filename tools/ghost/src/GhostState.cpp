@@ -3515,8 +3515,8 @@ void GhostState::InsertPanel()
 	m_contentSerializer->SetPanelVertPadding(ctx.newID, 5);
 	m_contentSerializer->SetPanelColumns(ctx.newID, 2);
 
-	// Use helper to finalize insertion (panels are not floating)
-	FinalizeInsert(ctx.newID, ctx.parentID, "Panel", false);
+	// Use helper to finalize insertion
+	FinalizeInsert(ctx.newID, ctx.parentID, "Panel");
 }
 
 void GhostState::InsertLabel()
