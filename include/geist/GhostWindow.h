@@ -13,14 +13,14 @@ class GhostWindow
 public:
 	GhostWindow(const std::string& ghostFilePath, const std::string& configPath,
 	            ResourceManager* resourceManager, int screenWidth, int screenHeight, bool modal = true, float scale = 1.0f, float inputScale = 1.0f);
-	~GhostWindow();
+	virtual ~GhostWindow();
 
-	void Update();
-	void Draw();
+	virtual void Update();
+	virtual void Draw();
 
-	void Show();
-	void Hide();
-	void Toggle();
+	virtual void Show();
+	virtual void Hide();
+	virtual void Toggle();
 	bool IsVisible() const { return m_visible; }
 
 	bool IsModal() const { return m_modal; }
