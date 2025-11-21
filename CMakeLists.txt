@@ -106,6 +106,7 @@ file(GLOB GEIST_SOURCES
     "tools/ghost/src/GhostSerializer.cpp"
     "tools/ghost/src/GhostWindow.cpp"
     "tools/ghost/src/GhostState.cpp"
+    "tools/ghost/src/GhostResourceLoader.cpp"
 )
 
 file(GLOB GEIST_HEADERS
