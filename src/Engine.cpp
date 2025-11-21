@@ -36,7 +36,8 @@ void Engine::Init(const std::string &configfile)
 	m_ScreenHeight = m_EngineConfig.GetNumber("v_res");
 
 	//  Initialize Raylib and the screen.
-	InitWindow(g_Engine->m_EngineConfig.GetNumber("h_res"), g_Engine->m_EngineConfig.GetNumber("v_res"), "Ultima VII: Revisited");
+	std::string windowTitle = m_EngineConfig.GetString("name");
+	InitWindow(g_Engine->m_EngineConfig.GetNumber("h_res"), g_Engine->m_EngineConfig.GetNumber("v_res"), windowTitle.c_str());
 	SetExitKey(KEY_NULL); // We'll handle exiting with ESC
 	if (g_Engine->m_EngineConfig.GetNumber("full_screen") == 1)
 	{
