@@ -63,8 +63,17 @@ void FileChooserState::OnEnter()
 	if (m_currentPath.empty())
 	{
 		// Default to Gui folder where .ghost files are located
-		m_currentPath = SanitizePath(GetWorkingDirectory());
-		m_currentPath += "/Gui/";
+		std::string workingDir = SanitizePath(GetWorkingDirectory());
+		std::string guiPath = workingDir + "/Gui/";
+		// Only use Gui folder if it exists, otherwise use working directory
+		if (DirectoryExists(guiPath.c_str()))
+		{
+			m_currentPath = guiPath;
+		}
+		else
+		{
+			m_currentPath = workingDir + "/";
+		}
 	}
 
 	LoadDirectory(m_currentPath);
@@ -370,8 +379,16 @@ void FileChooserState::SetMode(bool isSave, const std::string& filter, const std
 		}
 		else
 		{
-			// Fallback to default directory
-			m_currentPath = workingDir + "/Gui/";
+			// Fallback to default directory - only use Gui folder if it exists
+			std::string guiPath = workingDir + "/Gui/";
+			if (DirectoryExists(guiPath.c_str()))
+			{
+				m_currentPath = guiPath;
+			}
+			else
+			{
+				m_currentPath = workingDir + "/";
+			}
 		}
 	}
 

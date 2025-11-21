@@ -397,6 +397,40 @@ public:
 	void SetUseExampleText(bool use) { m_useExampleText = use; }
 	bool GetUseExampleText() const { return m_useExampleText; }
 
+	// Control whether type=include elements are expanded (loaded recursively) or kept as placeholders
+	// When false (default for Ghost editor), includes are stored as metadata but not loaded
+	// When true (default for GhostWindow), includes are fully expanded into the GUI
+	void SetExpandIncludes(bool expand) { m_expandIncludes = expand; }
+	bool GetExpandIncludes() const { return m_expandIncludes; }
+
+	// When true, ignore explicit "id" fields in JSON and always auto-generate IDs
+	// This prevents loaded content from overwriting app UI elements
+	void SetIgnoreExplicitIDs(bool ignore) { m_ignoreExplicitIDs = ignore; }
+	bool GetIgnoreExplicitIDs() const { return m_ignoreExplicitIDs; }
+
+	// Check if an element ID represents an include directive
+	bool IsIncludeElement(int elementID) const
+	{
+		return m_includeElements.find(elementID) != m_includeElements.end();
+	}
+
+	// Get the filename for an include element (empty string if not an include)
+	std::string GetIncludeFilename(int elementID) const
+	{
+		auto it = m_includeElements.find(elementID);
+		return (it != m_includeElements.end()) ? it->second.filename : "";
+	}
+
+	// Set the filename for an include element
+	void SetIncludeFilename(int elementID, const std::string& filename)
+	{
+		auto it = m_includeElements.find(elementID);
+		if (it != m_includeElements.end())
+		{
+			it->second.filename = filename;
+		}
+	}
+
 	// Helper to center a loaded ghost GUI on screen
 	// Gets root panel size and calls SetLayout with GUIP_CENTER
 	// Returns true if successful, false if no root panel found
@@ -493,6 +527,8 @@ private:
 	// Control whether empty text fields get filled with "example" placeholder text
 	// Defaults to false - only Ghost editor should enable this
 	bool m_useExampleText = false;
+	bool m_expandIncludes = true;  // Default true for backwards compatibility (GhostWindow behavior)
+	bool m_ignoreExplicitIDs = false;  // When true, ignore "id" fields in JSON and always auto-generate IDs
 
 	// Static base paths for resources
 	static std::string s_baseFontPath;

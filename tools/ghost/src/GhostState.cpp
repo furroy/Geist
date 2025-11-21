@@ -12,6 +12,7 @@
 #include "GhostResourceLoader.h"
 #include <raylib.h>
 #include <fstream>
+#include <set>
 
 using namespace std;
 
@@ -1120,6 +1121,7 @@ void GhostState::Update()
 	static std::string lastVertPaddingValue = "";
 	static std::string lastFontValue = "";
 	static std::string lastFontSizeValue = "";
+	static std::string lastFilenameValue = "";
 
 	// Check if a property panel radio button was clicked and update element
 	// This MUST be checked BEFORE the early return below
@@ -1486,10 +1488,12 @@ void GhostState::Update()
 		lastVertPaddingValue = "";
 		lastFontValue = "";
 		lastFontSizeValue = "";
+		lastFilenameValue = "";
 	}
 
 	// Check for property value changes while typing (for live updates)
 	CheckPropertyChanged(activeID, "PROPERTY_NAME", lastNameValue);
+	CheckPropertyChanged(activeID, "PROPERTY_FILENAME", lastFilenameValue);
 	CheckPropertyChanged(activeID, "PROPERTY_COLUMNS", lastColumnsValue);
 	CheckPropertyChanged(activeID, "PROPERTY_SPRITE", lastSpriteValue);
 	CheckPropertyChanged(activeID, "PROPERTY_TEXT", lastTextValue);
@@ -1684,9 +1688,12 @@ void GhostState::Update()
 			// Count depth by walking up the parent chain
 			int depth = 0;
 			int currentID = id;
-			while (currentID != -1)
+			while (currentID != -1 && depth < 100)
 			{
-				currentID = m_contentSerializer->GetParentID(currentID);
+				int parentID = m_contentSerializer->GetParentID(currentID);
+				if (parentID == currentID)  // Prevent infinite loop if element is its own parent
+					break;
+				currentID = parentID;
 				depth++;
 			}
 
@@ -3117,11 +3124,10 @@ void GhostState::LoadGhostFile(const std::string& filepath)
 	// ID 2000 is the content container itself, content elements start at 2001+
 	m_contentSerializer = make_unique<GhostSerializer>();
 	m_contentSerializer->SetAutoIDStart(2001);
+	m_contentSerializer->SetExpandIncludes(false);  // Ghost editor doesn't expand includes
+	m_contentSerializer->SetIgnoreExplicitIDs(true);  // Always auto-generate IDs to prevent overwriting app UI
 
-	// Use the content container (ID 2000) as the root for loaded content
-	m_contentSerializer->SetRootElementID(2000);
-
-	// Load the file into the content panel container
+	// Load the file into the content panel container (root ID is set automatically from parentElementID)
 	int containerX = static_cast<int>(contentContainer->m_Pos.x);
 	int containerY = static_cast<int>(contentContainer->m_Pos.y);
 
@@ -3208,6 +3214,14 @@ void GhostState::ClearLoadedContent()
 	}
 	m_elementIDList.clear();
 
+	// Preserve fonts from content serializer before resetting
+	// The fonts need to stay alive in case they're shared with other elements
+	if (m_contentSerializer)
+	{
+		auto& oldFonts = m_contentSerializer->GetLoadedFonts();
+		m_preservedFonts.insert(m_preservedFonts.end(), oldFonts.begin(), oldFonts.end());
+	}
+
 	// Reset the content serializer
 	m_contentSerializer.reset();
 
@@ -3233,6 +3247,8 @@ void GhostState::EnsureContentRoot()
 	{
 		m_contentSerializer = make_unique<GhostSerializer>();
 		m_contentSerializer->SetAutoIDStart(2001);  // Content starts at 2001
+		m_contentSerializer->SetExpandIncludes(false);  // Ghost editor doesn't expand includes
+		m_contentSerializer->SetIgnoreExplicitIDs(true);  // Always auto-generate IDs to prevent overwriting app UI
 	}
 
 	// Set the content container (ID 2000) as the root
@@ -4006,13 +4022,24 @@ void GhostState::UpdatePropertyPanel()
 		return;
 	}
 
-	// Get the selected element
+	// Check if this is an include element (no GUI element exists for includes)
+	bool isInclude = m_contentSerializer && m_contentSerializer->IsIncludeElement(m_selectedElementID);
+
+	Log("UpdatePropertyPanel: selectedElementID=" + to_string(m_selectedElementID) + " isInclude=" + (isInclude ? "true" : "false"));
+
+	// Get the selected element (will be null for includes)
 	auto selectedElement = m_gui->GetElement(m_selectedElementID);
-	if (!selectedElement)
+	if (!selectedElement && !isInclude)
+	{
+		Log("UpdatePropertyPanel: no element found and not an include, returning");
 		return;
+	}
+
+	// Use a special type value for includes (-2) to track property panel type
+	int currentType = isInclude ? -2 : selectedElement->m_Type;
 
 	// Check if element type changed
-	if (m_lastPropertyElementType == selectedElement->m_Type)
+	if (m_lastPropertyElementType == currentType)
 	{
 		// Same type, no need to reload property panel, but DO need to repopulate fields
 		PopulatePropertyPanelFields();
@@ -4025,7 +4052,13 @@ void GhostState::UpdatePropertyPanel()
 	// Determine which property file to load based on element type
 	string propertyFile;
 	string basePath = GhostSerializer::GetBaseGhostPath();
-	switch (selectedElement->m_Type)
+	
+	// Handle include elements specially
+	if (isInclude)
+	{
+		propertyFile = basePath + "ghost_prop_include.ghost";
+	}
+	else switch (selectedElement->m_Type)
 	{
 		case GUI_TEXTBUTTON:
 			propertyFile = basePath + "ghost_prop_textbutton.ghost";
@@ -4093,7 +4126,7 @@ void GhostState::UpdatePropertyPanel()
 
 	if (m_propertySerializer->LoadIntoPanel(propertyFile, m_gui.get(), containerX, containerY, 3000))
 	{
-		m_lastPropertyElementType = selectedElement->m_Type;
+		m_lastPropertyElementType = currentType;
 		Log("Loaded property panel: " + propertyFile);
 
 		// Enable debug value display on all property panel scrollbars (ID >= 3000)
@@ -4199,40 +4232,63 @@ void GhostState::PopulateElementHierarchy()
 		if (id == 2000)
 			continue;
 
-		// Get element to check its type
-		// Note: Include directives don't create GUI elements, so they won't exist here - that's OK, just skip them
-		auto element = m_gui->GetElement(id);
-		if (!element)
-		{
-			Log("PopulateElementHierarchy: Skipping ID " + std::to_string(id) + " (no GUI element found - likely an include directive)");
-			continue;
-		}
-
 		// Calculate depth by counting parent hops
 		int depth = 0;
 		int currentID = id;
+		std::set<int> visited;
 		while (true)
 		{
 			int parentID = m_contentSerializer->GetParentID(currentID);
 			if (parentID == -1 || parentID == 2000) // Stop at root container
 				break;
+			// Protect against circular references
+			if (visited.find(parentID) != visited.end())
+			{
+				Log("WARNING: Circular parent reference detected for element " + std::to_string(id));
+				break;
+			}
+			visited.insert(parentID);
 			depth++;
 			currentID = parentID;
+			// Safety limit to prevent infinite loops
+			if (depth > 100)
+			{
+				Log("WARNING: Depth limit exceeded for element " + std::to_string(id) + ", stopping at depth 100");
+				break;
+			}
 		}
 
 		// Build the display string with indentation (1 space per level)
 		std::string indent(depth, ' ');
-		std::string typeName = GetTypeName(element->m_Type);
-		std::string name = GetElementName(id);
-
 		std::string displayText;
-		if (!name.empty())
+
+		// Check if this is an include directive (no GUI element)
+		if (m_contentSerializer->IsIncludeElement(id))
 		{
-			displayText = indent + name + ": " + typeName;
+			std::string filename = m_contentSerializer->GetIncludeFilename(id);
+			displayText = indent + "[include: " + filename + "]";
 		}
 		else
 		{
-			displayText = indent + typeName + " (" + std::to_string(id) + ")";
+			// Regular GUI element
+			auto element = m_gui->GetElement(id);
+			if (!element)
+			{
+				Log("PopulateElementHierarchy: Skipping ID " + std::to_string(id) + " (no GUI element found)");
+				continue;
+			}
+
+			std::string typeName = GetTypeName(element->m_Type);
+			std::string name = GetElementName(id);
+
+			if (!name.empty())
+			{
+				displayText = indent + name + ": " + typeName;
+			}
+			else
+			{
+				displayText = indent + typeName + " (" + std::to_string(id) + ")";
+			}
 		}
 
 		// Add to listbox and parallel ID list
@@ -4271,8 +4327,26 @@ void GhostState::PopulatePropertyPanelFields()
 	if (m_selectedElementID == -1)
 		return;
 
-	// Get the selected element once at the top
+	// Check if this is an include element
+	bool isInclude = m_contentSerializer && m_contentSerializer->IsIncludeElement(m_selectedElementID);
+
+	// Get the selected element once at the top (will be null for includes)
 	auto selectedElement = m_gui->GetElement(m_selectedElementID);
+
+	// Handle include elements specially
+	if (isInclude)
+	{
+		// Populate name property
+		std::string elementName = GetElementName(m_selectedElementID);
+		PopulateTextInputProperty("PROPERTY_NAME", elementName);
+
+		// Populate filename property
+		std::string filename = m_contentSerializer->GetIncludeFilename(m_selectedElementID);
+		PopulateTextInputProperty("PROPERTY_FILENAME", filename);
+
+		Log("PopulatePropertyPanelFields: include element " + to_string(m_selectedElementID) + " filename: '" + filename + "'");
+		return;
+	}
 
 	// Populate name property (every element has a name)
 	std::string elementName = GetElementName(m_selectedElementID);
@@ -4595,11 +4669,50 @@ void GhostState::UpdateElementFromPropertyPanel()
 
 	bool wasUpdated = false;
 
-	// Get the selected element once at the top
+	// Check if this is an include element
+	bool isInclude = m_contentSerializer && m_contentSerializer->IsIncludeElement(m_selectedElementID);
+
+	// Get the selected element once at the top (will be null for includes)
 	auto selectedElement = m_gui->GetElement(m_selectedElementID);
 
 	// Update name property (every element has a name)
 	if (UpdateNameProperty()) wasUpdated = true;
+
+	// Update filename property for include elements
+	if (isInclude)
+	{
+		int filenameInputID = m_propertySerializer->GetElementID("PROPERTY_FILENAME");
+		Log("UpdateElementFromPropertyPanel: isInclude=true, filenameInputID=" + to_string(filenameInputID));
+		if (filenameInputID != -1)
+		{
+			auto filenameInput = m_gui->GetElement(filenameInputID);
+			if (filenameInput && filenameInput->m_Type == GUI_TEXTINPUT)
+			{
+				auto propertyInput = static_cast<GuiTextInput*>(filenameInput.get());
+				std::string newFilename = propertyInput->m_String;
+				std::string oldFilename = m_contentSerializer->GetIncludeFilename(m_selectedElementID);
+
+				if (newFilename != oldFilename)
+				{
+					m_contentSerializer->SetIncludeFilename(m_selectedElementID, newFilename);
+					m_contentSerializer->SetDirty(true);
+					Log("Updated include " + to_string(m_selectedElementID) + " filename to: " + newFilename);
+					wasUpdated = true;
+
+					// Update the hierarchy display to show new filename
+					PopulateElementHierarchy();
+					UpdateElementHierarchySelection();
+				}
+			}
+		}
+
+		// For includes, we're done after updating name and filename
+		if (wasUpdated)
+		{
+			Log("Include element updated");
+		}
+		return;
+	}
 
 	// Update PROPERTY_TEXT if it exists (for textarea and textbutton elements)
 	int textInputID = m_propertySerializer->GetElementID("PROPERTY_TEXT");
@@ -5125,6 +5238,8 @@ void GhostState::Undo()
 	m_contentSerializer = make_unique<GhostSerializer>();
 	m_contentSerializer->SetAutoIDStart(2001);
 	m_contentSerializer->SetRootElementID(2000); // Set root to content panel container
+	m_contentSerializer->SetExpandIncludes(false);  // Ghost editor doesn't expand includes
+	m_contentSerializer->SetIgnoreExplicitIDs(true);  // Always auto-generate IDs to prevent overwriting app UI
 
 	// Restore the undo state
 	// The undoState contains the serialized root element with all its children
@@ -5215,6 +5330,8 @@ void GhostState::Redo()
 	m_contentSerializer = make_unique<GhostSerializer>();
 	m_contentSerializer->SetAutoIDStart(2001);
 	m_contentSerializer->SetRootElementID(2000); // Set root to content panel container
+	m_contentSerializer->SetExpandIncludes(false);  // Ghost editor doesn't expand includes
+	m_contentSerializer->SetIgnoreExplicitIDs(true);  // Always auto-generate IDs to prevent overwriting app UI
 
 	// Restore the redo state
 	// The redoState contains the serialized root element with all its children
