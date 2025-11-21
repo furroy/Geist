@@ -119,6 +119,9 @@ int main()
 				g_ResourceManager = make_unique<ResourceManager>();
 				g_StateMachine = make_unique<StateMachine>();
 
+				// Set Ghost-specific base path for GUI files
+				GhostSerializer::SetBaseGhostPath("Gui/Ghost/");
+
 				// Create and register Ghost state
 				State* ghostState = new GhostState;
 				ghostState->Init("");

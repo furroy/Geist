@@ -15,7 +15,7 @@ extern std::unique_ptr<ResourceManager> g_ResourceManager;
 // Initialize static members
 std::string GhostSerializer::s_baseFontPath = "Fonts/";
 std::string GhostSerializer::s_baseSpritePath = "Images/";
-std::string GhostSerializer::s_baseGhostPath = "Gui/Ghost/";
+std::string GhostSerializer::s_baseGhostPath = "Gui/";
 GhostSerializer::JsonLoaderCallback GhostSerializer::s_jsonLoaderCallback = nullptr;
 
 GhostSerializer::GhostSerializer()
