@@ -2,7 +2,7 @@
 #define _COLORPICKERSTATE_H_
 
 #include <geist/State.h>
-#include "GhostWindow.h"
+#include <geist/GhostWindow.h>
 #include <memory>
 #include <raylib.h>
 

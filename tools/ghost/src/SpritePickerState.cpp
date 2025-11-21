@@ -5,7 +5,7 @@
 #include <geist/Config.h>
 #include <geist/Gui.h>
 #include <geist/GuiElements.h>
-#include "GhostSerializer.h"
+#include <geist/GhostSerializer.h>
 #include "SpriteUtils.h"
 #include "FileChooserState.h"
 #include <algorithm>

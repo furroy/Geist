@@ -5,7 +5,7 @@
 #include <geist/Config.h>
 #include <geist/Gui.h>
 #include <geist/GuiElements.h>
-#include "GhostSerializer.h"
+#include <geist/GhostSerializer.h>
 #include <algorithm>
 
 extern std::unique_ptr<StateMachine> g_StateMachine;

@@ -110,17 +110,20 @@ file(GLOB GEIST_SOURCES
 
 file(GLOB GEIST_HEADERS
     "include/geist/*.h"
-    "tools/ghost/src/*.h"
 )
 
 add_library(geist STATIC ${GEIST_SOURCES} ${GEIST_HEADERS})
 
 target_include_directories(geist PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/tools/ghost/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/raylib/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/lua/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty>
+)
+
+# Private include for ghost tool source files that haven't been moved yet
+target_include_directories(geist PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/tools/ghost/src>
 )
 
 target_compile_features(geist PUBLIC cxx_std_17)

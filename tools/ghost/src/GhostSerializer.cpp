@@ -1,4 +1,4 @@
-#include "GhostSerializer.h"
+#include <geist/GhostSerializer.h>
 #include <geist/Logging.h>
 #include <geist/ResourceManager.h>
 #include <geist/Primitives.h>
