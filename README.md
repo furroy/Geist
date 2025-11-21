@@ -1,6 +1,19 @@
 # Geist
 Geist is the framework I use to make all my own games.  It is cross-platform between Windows and Linux.
 
+# Building w/ CMake
+
+Cross platform, works either Linux or Windows!
+
+
+From the Geist folder you can use these two commands. The first cmake command sets up a makefile or visual studio solution. The second will actually compile the project. You can still cd build and manually use the makefile or solution file afterwards.  You can delete build folder at any time and use cmake to recreate it.
+
+```
+cmake . -B build
+cmake --build build
+```
+
+# Notes
 
 I have used it to make the following games:
 
