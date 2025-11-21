@@ -339,9 +339,21 @@ void FileChooserState::SetMode(bool isSave, const std::string& filter, const std
 		m_title = isSave ? "Save File" : "Open File";
 	}
 
+	std::string workingDir = SanitizePath(GetWorkingDirectory());
+	// Ensure workingDir doesn't end with slash
+	if (!workingDir.empty() && workingDir.back() == '/')
+	{
+		workingDir.pop_back();
+	}
+
 	if (!initialPath.empty())
 	{
 		m_currentPath = SanitizePath(initialPath);
+		// Convert relative path to absolute if needed
+		if (m_currentPath.length() < 2 || m_currentPath[1] != ':')
+		{
+			m_currentPath = workingDir + "/" + m_currentPath;
+		}
 	}
 	else
 	{
@@ -350,12 +362,16 @@ void FileChooserState::SetMode(bool isSave, const std::string& filter, const std
 		if (!lastDir.empty())
 		{
 			m_currentPath = SanitizePath(lastDir);
+			// Convert relative path to absolute if needed
+			if (m_currentPath.length() < 2 || m_currentPath[1] != ':')
+			{
+				m_currentPath = workingDir + "/" + m_currentPath;
+			}
 		}
 		else
 		{
 			// Fallback to default directory
-			m_currentPath = SanitizePath(GetWorkingDirectory());
-			m_currentPath += "/Gui/";
+			m_currentPath = workingDir + "/Gui/";
 		}
 	}
 
