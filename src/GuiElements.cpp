@@ -1796,6 +1796,13 @@ void GuiListBox::Draw()
 	// Enable scissor mode to clip text to listbox bounds
 	BeginScissorMode(x, y, w, h);
 
+	// Don't draw items if font is invalid
+	if (!m_Font || m_Font->texture.id == 0)
+	{
+		EndScissorMode();
+		return;
+	}
+
 	// Draw visible items (include one extra item for partial visibility at bottom)
 	int endIndex = m_ScrollOffset + m_VisibleItemCount + 1;
 	if (endIndex > static_cast<int>(m_Items.size()))
@@ -1818,12 +1825,9 @@ void GuiListBox::Draw()
 		}
 
 		// Draw item text
-		if (m_Font)
-		{
-			DrawTextEx(*m_Font, m_Items[i].c_str(),
-			          {static_cast<float>(x + 5), static_cast<float>(itemY + 2)},
-			          m_Font->baseSize, 1, m_TextColor);
-		}
+		DrawTextEx(*m_Font, m_Items[i].c_str(),
+		          {static_cast<float>(x + 5), static_cast<float>(itemY + 2)},
+		          m_Font->baseSize, 1, m_TextColor);
 	}
 
 	// Disable scissor mode

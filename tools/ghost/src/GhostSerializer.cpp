@@ -1,4 +1,4 @@
-#include "GhostSerializer.h"
+#include <geist/GhostSerializer.h>
 #include <geist/Logging.h>
 #include <geist/ResourceManager.h>
 #include <geist/Primitives.h>
@@ -15,7 +15,7 @@ extern std::unique_ptr<ResourceManager> g_ResourceManager;
 // Initialize static members
 std::string GhostSerializer::s_baseFontPath = "Fonts/";
 std::string GhostSerializer::s_baseSpritePath = "Images/";
-std::string GhostSerializer::s_baseGhostPath = "Gui/Ghost/";
+std::string GhostSerializer::s_baseGhostPath = "Gui/";
 GhostSerializer::JsonLoaderCallback GhostSerializer::s_jsonLoaderCallback = nullptr;
 
 GhostSerializer::GhostSerializer()
@@ -253,9 +253,10 @@ void GhostSerializer::ParseElements(const ghost_json& elementsArray, Gui* gui, c
 	{
 		string type = element["type"];
 
-		// ID is now optional - auto-generate if not provided
+		// Auto-generate IDs unless explicit ID is provided and m_ignoreExplicitIDs is false
+		// Ghost's app UI needs explicit IDs, but loaded content should always auto-generate
 		int id;
-		if (element.contains("id"))
+		if (element.contains("id") && !m_ignoreExplicitIDs)
 		{
 			id = element["id"];
 		}
@@ -282,6 +283,25 @@ void GhostSerializer::ParseElements(const ghost_json& elementsArray, Gui* gui, c
 			else
 			{
 				Log("GhostSerializer::ParseElements - Loading included file: " + filename);
+			}
+
+			// If not expanding includes, just store metadata and skip loading
+			if (!m_expandIncludes)
+			{
+				Log("GhostSerializer::ParseElements - Skipping include expansion (m_expandIncludes=false): " + filename);
+				// Store include metadata for serialization
+				IncludeMetadata metadata;
+				metadata.filename = filename;
+				metadata.namePrefix = includeNamePrefix;
+				// Use a placeholder ID for this include directive
+				int includeID = m_nextAutoID++;
+				m_includeElements[includeID] = metadata;
+				// Register as child of parent so it appears in hierarchy
+				if (parentElementID != -1)
+				{
+					m_childrenMap[parentElementID].push_back(includeID);
+				}
+				continue;
 			}
 
 			// Track children before include so we can find what was added
@@ -1937,6 +1957,13 @@ bool GhostSerializer::LoadIntoPanel(const std::string& filename, Gui* gui, int p
 		return false;
 	}
 
+	// Set the root element ID if not already set
+	// This allows the serializer to track the hierarchy properly
+	if (m_rootElementID == -1 && parentElementID != -1)
+	{
+		m_rootElementID = parentElementID;
+	}
+
 	// Build inherited properties from parent panel
 	ghost_json inheritedProps = BuildInheritedProps(parentElementID);
 
@@ -2053,7 +2080,7 @@ bool GhostSerializer::SaveSelectedElements(const std::string& filename, Gui* gui
 			auto element = it->second;
 			ghost_json elementJson;
 
-			elementJson["id"] = element->m_ID;
+			// Don't save ID - elements are identified by name, IDs are auto-generated at load time
 			elementJson["position"] = { element->m_Pos.x, element->m_Pos.y };
 			elementJson["group"] = element->m_Group;
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <geist/State.h>
-#include "GhostWindow.h"
+#include <geist/GhostWindow.h>
 #include <string>
 #include <memory>
 

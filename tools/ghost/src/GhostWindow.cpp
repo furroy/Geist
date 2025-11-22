@@ -1,5 +1,5 @@
-#include "GhostWindow.h"
-#include "GhostSerializer.h"
+#include <geist/GhostWindow.h>
+#include <geist/GhostSerializer.h>
 #include "GhostResourceLoader.h"
 #include <geist/Logging.h>
 #include <geist/ResourceManager.h>

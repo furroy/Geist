@@ -3,7 +3,7 @@
 
 #include <geist/State.h>
 #include <geist/Gui.h>
-#include "GhostSerializer.h"
+#include <geist/GhostSerializer.h>
 #include <memory>
 
 class GhostState : public State
