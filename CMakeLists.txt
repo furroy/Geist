@@ -1,3 +1,5 @@
+# if you don't know what this file is, see README.md
+
 cmake_minimum_required(VERSION 3.15)
 project(Geist VERSION 0.1.0 LANGUAGES C CXX)
 
@@ -104,21 +106,25 @@ file(GLOB GEIST_SOURCES
     "tools/ghost/src/GhostSerializer.cpp"
     "tools/ghost/src/GhostWindow.cpp"
     "tools/ghost/src/GhostState.cpp"
+    "tools/ghost/src/GhostResourceLoader.cpp"
 )
 
 file(GLOB GEIST_HEADERS
     "include/geist/*.h"
-    "tools/ghost/src/*.h"
 )
 
 add_library(geist STATIC ${GEIST_SOURCES} ${GEIST_HEADERS})
 
 target_include_directories(geist PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/tools/ghost/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/raylib/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/lua/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty>
+)
+
+# Private include for ghost tool source files that haven't been moved yet
+target_include_directories(geist PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/tools/ghost/src>
 )
 
 target_compile_features(geist PUBLIC cxx_std_17)

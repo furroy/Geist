@@ -5,7 +5,7 @@
 #include <geist/Config.h>
 #include <geist/Gui.h>
 #include <geist/GuiElements.h>
-#include "GhostSerializer.h"
+#include <geist/GhostSerializer.h>
 #include <algorithm>
 
 extern std::unique_ptr<StateMachine> g_StateMachine;
@@ -63,8 +63,17 @@ void FileChooserState::OnEnter()
 	if (m_currentPath.empty())
 	{
 		// Default to Gui folder where .ghost files are located
-		m_currentPath = SanitizePath(GetWorkingDirectory());
-		m_currentPath += "/Gui/";
+		std::string workingDir = SanitizePath(GetWorkingDirectory());
+		std::string guiPath = workingDir + "/Gui/";
+		// Only use Gui folder if it exists, otherwise use working directory
+		if (DirectoryExists(guiPath.c_str()))
+		{
+			m_currentPath = guiPath;
+		}
+		else
+		{
+			m_currentPath = workingDir + "/";
+		}
 	}
 
 	LoadDirectory(m_currentPath);
@@ -339,9 +348,21 @@ void FileChooserState::SetMode(bool isSave, const std::string& filter, const std
 		m_title = isSave ? "Save File" : "Open File";
 	}
 
+	std::string workingDir = SanitizePath(GetWorkingDirectory());
+	// Ensure workingDir doesn't end with slash
+	if (!workingDir.empty() && workingDir.back() == '/')
+	{
+		workingDir.pop_back();
+	}
+
 	if (!initialPath.empty())
 	{
 		m_currentPath = SanitizePath(initialPath);
+		// Convert relative path to absolute if needed
+		if (m_currentPath.length() < 2 || m_currentPath[1] != ':')
+		{
+			m_currentPath = workingDir + "/" + m_currentPath;
+		}
 	}
 	else
 	{
@@ -350,12 +371,24 @@ void FileChooserState::SetMode(bool isSave, const std::string& filter, const std
 		if (!lastDir.empty())
 		{
 			m_currentPath = SanitizePath(lastDir);
+			// Convert relative path to absolute if needed
+			if (m_currentPath.length() < 2 || m_currentPath[1] != ':')
+			{
+				m_currentPath = workingDir + "/" + m_currentPath;
+			}
 		}
 		else
 		{
-			// Fallback to default directory
-			m_currentPath = SanitizePath(GetWorkingDirectory());
-			m_currentPath += "/Gui/";
+			// Fallback to default directory - only use Gui folder if it exists
+			std::string guiPath = workingDir + "/Gui/";
+			if (DirectoryExists(guiPath.c_str()))
+			{
+				m_currentPath = guiPath;
+			}
+			else
+			{
+				m_currentPath = workingDir + "/";
+			}
 		}
 	}
 

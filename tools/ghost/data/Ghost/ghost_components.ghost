@@ -144,7 +144,7 @@
             ]
           },
           {
-            "name": "LISTBOX_copy_copy",
+            "name": "LISTBOX",
             "type": "textbutton",
             "position": [
               -1,
@@ -171,7 +171,7 @@
             ]
           },
           {
-            "name": "STRETCHBUTTON_copy",
+            "name": "STRETCHBUTTON",
             "type": "textbutton",
             "position": [
               -1,
